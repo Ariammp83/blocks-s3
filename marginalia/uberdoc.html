@@ -2865,15 +2865,14 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>mvxcvi/blocks-s3 -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/blocks-s3">mvxcvi/blocks-s3</a></h1><h2 class="project-version">0.3.1</h2><br /><p>Content-addressable S3 block store.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1</td></tr><tr><td class="dep-name">com.amazonaws/aws-java-sdk-s3</td><td class="dotted"><hr /></td><td class="dep-version">1.11.91</td></tr><tr><td class="dep-name">commons-logging</td><td class="dotted"><hr /></td><td class="dep-version">1.2</td></tr><tr><td class="dep-name">mvxcvi/blocks</td><td class="dotted"><hr /></td><td class="dep-version">0.8.0</td></tr><tr><td class="dep-name">mvxcvi/multihash</td><td class="dotted"><hr /></td><td class="dep-version">2.0.1</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#blocks.store.s3">blocks.store.s3</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#blocks.store.s3" name="blocks.store.s3"><h1 class="project-name">blocks.store.s3</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Block storage backed by a bucket in Amazon S3.</p>
+</script><title>mvxcvi/blocks-s3 -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/blocks-s3">mvxcvi/blocks-s3</a></h1><h2 class="project-version">0.3.2</h2><br /><p>Content-addressable S3 block store.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1</td></tr><tr><td class="dep-name">commons-logging</td><td class="dotted"><hr /></td><td class="dep-version">1.2</td></tr><tr><td class="dep-name">mvxcvi/blocks</td><td class="dotted"><hr /></td><td class="dep-version">0.9.0</td></tr><tr><td class="dep-name">mvxcvi/multihash</td><td class="dotted"><hr /></td><td class="dep-version">2.0.1</td></tr><tr><td class="dep-name">com.amazonaws/aws-java-sdk-s3</td><td class="dotted"><hr /></td><td class="dep-version">1.11.91</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#blocks.store.s3">blocks.store.s3</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#blocks.store.s3" name="blocks.store.s3"><h1 class="project-name">blocks.store.s3</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Block storage backed by a bucket in Amazon S3.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns blocks.store.s3
   (:require
     (blocks
       [core :as block]
       [data :as data]
       [store :as store])
-    [blocks.store.util :as util]
     [clojure.string :as str]
     [clojure.tools.logging :as log]
     [multihash.core :as multihash])
@@ -2941,11 +2940,11 @@ explicit AWS credentials.</li>
   [prefix object-key]
   (some-&gt;
     object-key
-    (util/check #(.startsWith ^String % (or prefix &quot;&quot;))
+    (store/check #(.startsWith ^String % (or prefix &quot;&quot;))
       (log/warnf &quot;S3 object %s is not under prefix %s&quot;
                  object-key (pr-str prefix)))
     (cond-&gt; prefix (subs (count prefix)))
-    (util/check #(re-matches #&quot;[0-9a-fA-F]+&quot; %)
+    (store/check #(re-matches #&quot;[0-9a-fA-F]+&quot; %)
       (log/warnf &quot;Encountered block subkey with invalid hex: %s&quot;
                  (pr-str value)))
     (multihash/decode)))</pre></td></tr><tr><td class="docs"><h2>S3 Block Functions</h2>
@@ -3028,7 +3027,7 @@ explicit AWS credentials.</li>
         (.setMaxKeys request (int limit)))
       (-&gt;&gt; (list-objects-seq client request)
            (map (partial summary-stats prefix))
-           (util/select-stats opts))))
+           (store/select-stats opts))))
   (-get
     [this id]
     (when-let [stats (.-stat this id)]
@@ -3061,24 +3060,23 @@ explicit AWS credentials.</li>
         (log/debugf &quot;DeleteObject %s&quot; (s3-uri bucket object-key))
         (.deleteObject client bucket object-key)
         true)
-      false)))</pre></td></tr><tr><td class="docs"><p>Clears all blocks from the S3 store by deleting everything in the bucket
-  matching the store prefix.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn erase!
-  [store]
-  (let [^AmazonS3 client (:client store)
-        request (doto (ListObjectsRequest.)
-                  (.setBucketName (:bucket store))
-                  (.setPrefix (:prefix store)))]
+      false))
+  store/ErasableStore
+  (-erase!
+    [store]
     (log/warnf &quot;Erasing all objects under %s&quot;
                (s3-uri (:bucket store) (:prefix store)))
-    (-&gt;&gt; (list-objects-seq client request)
-         (map (fn [^S3ObjectSummary object]
-                (.deleteObject client (:bucket store) (.getKey object))))
-         (dorun))
-    nil))</pre></td></tr><tr><td class="docs"><h2>Store Construction</h2>
+    (run!
+      (fn delete
+        [^S3ObjectSummary object]
+        (.deleteObject client (:bucket store) (.getKey object)))
+      (list-objects-seq
+        client
+        (doto (ListObjectsRequest.)
+          (.setBucketName (:bucket store))
+          (.setPrefix (:prefix store)))))))</pre></td></tr><tr><td class="docs"><h2>Store Construction</h2>
 </td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(alter-meta! #'-&gt;S3BlockStore assoc :private true)
-(alter-meta! #'map-&gt;S3BlockStore assoc :private true)</pre></td></tr><tr><td class="docs"><p>Cleans a string by removing leading and trailing slashes, then leading and
+</td><td class="codes"><pre class="brush: clojure">(store/privatize-constructors! S3BlockStore)</pre></td></tr><tr><td class="docs"><p>Cleans a string by removing leading and trailing slashes, then leading and
   trailing whitespace. Returns nil if the resulting string is empty.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- trim-slashes
   ^String
@@ -3115,7 +3113,7 @@ explicit AWS credentials.</li>
        :prefix (some-&gt; (trim-slashes (:prefix opts)) (str &quot;/&quot;))})))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defmethod store/initialize &quot;s3&quot;
   [location]
-  (let [uri (util/parse-uri location)]
+  (let [uri (store/parse-uri location)]
     (s3-block-store
       (:host uri)
       :prefix (:path uri)
