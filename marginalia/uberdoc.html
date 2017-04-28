@@ -2865,8 +2865,8 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>mvxcvi/blocks-s3 -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/blocks-s3">mvxcvi/blocks-s3</a></h1><h2 class="project-version">0.3.2</h2><br /><p>Content-addressable S3 block store.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1</td></tr><tr><td class="dep-name">commons-logging</td><td class="dotted"><hr /></td><td class="dep-version">1.2</td></tr><tr><td class="dep-name">mvxcvi/blocks</td><td class="dotted"><hr /></td><td class="dep-version">0.9.0</td></tr><tr><td class="dep-name">mvxcvi/multihash</td><td class="dotted"><hr /></td><td class="dep-version">2.0.1</td></tr><tr><td class="dep-name">com.amazonaws/aws-java-sdk-s3</td><td class="dotted"><hr /></td><td class="dep-version">1.11.91</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#blocks.store.s3">blocks.store.s3</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#blocks.store.s3" name="blocks.store.s3"><h1 class="project-name">blocks.store.s3</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Block storage backed by a bucket in Amazon S3.</p>
+</script><title>mvxcvi/blocks-s3 -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/blocks-s3">mvxcvi/blocks-s3</a></h1><h2 class="project-version">0.3.3</h2><br /><p>Content-addressable S3 block store.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1</td></tr><tr><td class="dep-name">commons-logging</td><td class="dotted"><hr /></td><td class="dep-version">1.2</td></tr><tr><td class="dep-name">mvxcvi/blocks</td><td class="dotted"><hr /></td><td class="dep-version">0.9.0</td></tr><tr><td class="dep-name">mvxcvi/multihash</td><td class="dotted"><hr /></td><td class="dep-version">2.0.1</td></tr><tr><td class="dep-name">com.amazonaws/aws-java-sdk-s3</td><td class="dotted"><hr /></td><td class="dep-version">1.11.124</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#blocks.store.s3">blocks.store.s3</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#blocks.store.s3" name="blocks.store.s3"><h1 class="project-name">blocks.store.s3</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Block storage backed by a bucket in Amazon S3.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns blocks.store.s3
   (:require
     (blocks
@@ -2878,7 +2878,8 @@ net.brehaut.ClojureTools = (function (SH) {
     [multihash.core :as multihash])
   (:import
     (com.amazonaws.auth
-      BasicAWSCredentials)
+      BasicAWSCredentials
+      DefaultAWSCredentialsProviderChain)
     (com.amazonaws.regions
       Region
       Regions)
@@ -2922,10 +2923,16 @@ explicit AWS credentials.</li>
 </td><td class="codes"><pre class="brush: clojure">(defn get-client
   [opts]
   (let [client (if-let [creds (:credentials opts)]
-                 (AmazonS3Client. (BasicAWSCredentials.
-                                    (:access-key creds)
-                                    (:secret-key creds)))
-                 (AmazonS3Client.))]
+                 (AmazonS3Client.
+                   (BasicAWSCredentials.
+                     (:access-key creds)
+                     (:secret-key creds)))
+                 (AmazonS3Client.
+                   ; This is explicitly specified so that S3 block stores can
+                   ; directly use the global provider instance, rather than the
+                   ; default S3 client behavior which tries to operate in an
+                   ; anonymous mode if no credentials are found.
+                   (DefaultAWSCredentialsProviderChain/getInstance)))]
     (when-let [region (get-region (:region opts))]
       (.setRegion client region))
     client))</pre></td></tr><tr><td class="docs"><h2>S3 Key Translation</h2>
